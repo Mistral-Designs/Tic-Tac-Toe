@@ -1,0 +1,283 @@
+<!doctype html>
+<html>
+  
+  <head>    
+	<title>Tic-Tac-Toe</title>   	
+  </head>
+  
+  <body onload="disableAll()" onbeforeunload="closing()">
+    
+	<h1 id="title">Tic-Tac-Toe - Waiting for opponent</h1>
+	
+	<br>
+	
+		<select id="s1" onchange="sendMove('s1')">
+			<option value="-">-</option>
+			<option value="X">X</option>
+			<option value="O">O</option>
+		</select>
+		<select id="s2" onchange="sendMove('s2')">
+			<option value="-">-</option>
+			<option value="X">X</option>
+			<option value="O">O</option>
+		</select>
+		<select id="s3" onchange="sendMove('s3')">
+			<option value="-">-</option>
+			<option value="X">X</option>
+			<option value="O">O</option>
+		</select>
+		<br>
+		<select id="s4" onchange="sendMove('s4')">
+			<option value="-">-</option>
+			<option value="X">X</option>
+			<option value="O">O</option>
+		</select>
+		<select id="s5" onchange="sendMove('s5')">
+			<option value="-">-</option>
+			<option value="X">X</option>
+			<option value="O">O</option>
+		</select>
+		<select id="s6" onchange="sendMove('s6')">
+			<option value="-">-</option>
+			<option value="X">X</option>
+			<option value="O">O</option>
+		</select>
+		<br>
+		<select id="s7" onchange="sendMove('s7')">
+			<option value="-">-</option>
+			<option value="X">X</option>
+			<option value="O">O</option>
+		</select>
+		<select id="s8" onchange="sendMove('s8')">
+			<option value="-">-</option>
+			<option value="X">X</option>
+			<option value="O">O</option>
+		</select>
+		<select id="s9" onchange="sendMove('s9')">
+			<option value="-">-</option>
+			<option value="X">X</option>
+			<option value="O">O</option>
+		</select>
+		
+	<br><br><br>
+	
+	
+	Player Name: <input type="text" name="name" id="name">	  
+	<button type="button" id="nameBtn" onclick="setName()">Go</button>
+	<h4 id="scores">Opponent has won - matches</h4>
+	
+	<script src="/socket.io/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+	
+    <script>
+	  	  
+		var socket = io();
+		var indexes = [];				
+		var symbol, oSymbol;
+		var timeOut;
+		var name1set, name2set;
+		var split;
+
+		//Ανταλλαγή ονομάτων/πόντων
+		socket.on('setName', function(msg){		
+			
+			name2set = true;
+			split = msg.split('-');
+			
+			$('#title').text('You are playing against ' + split[0]);
+			$('#scores').text('Opponent has won ' + split[1] + ' matches');
+
+			if(name1set && name2set && symbol == 'O'){
+				enableAll();
+				timeOut = setTimeout(closeWindow, 20000);			
+			}
+		
+		});
+		
+		//Σύμβολα
+		socket.on('setSymbol', function(msg){
+						
+			var id;
+				
+			$('#nameBtn').prop('disabled', false);	
+				
+			if(msg == 'O'){	
+				
+				symbol = 'O';
+				oSymbol = 'X';
+				
+				for(var i = 1; i <= 9; i++){
+					id = '#s' + i.toString();
+					$(id + " option[value='X']").remove();
+				}
+				
+			}else{
+				
+				symbol = 'X';
+				oSymbol = 'O';
+				
+				for(var i = 1; i <= 9; i++){
+					id = '#s' + i.toString();
+					$(id + " option[value='O']").remove();
+				}
+				
+			}
+			
+		});
+		
+		//Κίνηση αντιπάλου
+		socket.on('move', function(msg){
+						
+			$('#' + msg.slice(0, 2)).append(new Option(oSymbol, oSymbol));
+			$('#' + msg.slice(0, 2)).val(msg.slice(2, 3));
+			indexes.push(msg.slice(0, 2));
+			disableUsed();
+			
+			clearTimeout(timeOut);
+			timeOut = setTimeout(closeWindow, 20000);
+			
+			if(checkWin() == 'lose'){			
+				clearTimeout(timeOut);
+				disableAll();
+				$('#title').text("Defeat");
+				$('#scores').text('Opponent has won ' + (parseInt(split[1])+1) + ' matches');
+				socket.emit('victory', split[0]);				
+			}
+			
+		});
+		
+		//Ο αντίπαλος εγκατέλειψε
+		socket.on('opponentLeft', function(){		
+			disableAll();
+			$('#title').text('Your opponent has left. Refresh the window to play again.');		
+		});
+			
+		
+		function setName(){
+			
+			if($('#title').text().includes('against') && split[0] == $('#name').val()){			
+				$('#name').val(' <- Name Taken');	
+			}else{				
+			
+				if($('#name').val() != ""){
+				
+					$('#nameBtn').prop('disabled', true);
+					
+					name1set = true;
+					socket.emit('setName', $('#name').val());
+					
+					if(name1set && name2set && symbol == 'O'){
+						enableAll();
+						timeOut = setTimeout(closeWindow, 20000);			
+					}
+				
+				}
+			
+			}
+			
+		}
+		
+		
+		function sendMove(id){
+				
+			indexes.push(id);				
+			socket.emit('move', id + $('#' + id).val());
+			disableAll();
+			clearTimeout(timeOut);	
+
+			if(checkWin() == 'win'){			
+				disableAll();
+				$('#title').text('Victory');				
+			}
+					
+		}	
+		
+		//Απενεργοποιώ τις επιλογές που δεν μπορεί να κάνει ο παίκτης
+		function disableUsed(){		
+		
+			for(var i = 1; i <= 9; i++){
+				
+				if(indexes.includes('s' + i.toString())){
+					$('#s' + i.toString()).prop('disabled', true);
+				}else{
+					$('#s' + i.toString()).prop('disabled', false);
+				}
+				
+			}		
+		
+		}
+		
+		
+		function disableAll(){	
+
+			$('#nameBtn').prop('disabled', true);		
+			
+			for(var i = 1; i <= 9; i++){
+				$('#s' + i.toString()).prop('disabled', true);			
+			}
+			
+		}
+		
+		
+		function enableAll(){			
+			for(var i = 1; i <= 9; i++){
+				$('#s' + i.toString()).prop('disabled', false);			
+			}			
+		}
+		
+		//Έλεγχος νίκης/ήττας
+		function checkWin(){		
+		
+			if($('#s1').val() == symbol && $('#s2').val() == symbol && $('#s3').val() == symbol){
+				return 'win';
+			}else if($('#s4').val() == symbol && $('#s5').val() == symbol && $('#s6').val() == symbol){
+				return 'win';
+			}else if($('#s7').val() == symbol && $('#s8').val() == symbol && $('#s9').val() == symbol){
+				return 'win';
+			}else if($('#s1').val() == symbol && $('#s4').val() == symbol && $('#s7').val() == symbol){
+				return 'win';
+			}else if($('#s2').val() == symbol && $('#s5').val() == symbol && $('#s8').val() == symbol){
+				return 'win';
+			}else if($('#s3').val() == symbol && $('#s6').val() == symbol && $('#s9').val() == symbol){
+				return 'win';
+			}else if($('#s1').val() == symbol && $('#s5').val() == symbol && $('#s9').val() == symbol){
+				return 'win';
+			}else if($('#s3').val() == symbol && $('#s5').val() == symbol && $('#s7').val() == symbol){
+				return 'win';
+			}else if($('#s1').val() == oSymbol && $('#s2').val() == oSymbol && $('#s3').val() == oSymbol){
+				return 'lose';
+			}else if($('#s4').val() == oSymbol && $('#s5').val() == oSymbol && $('#s6').val() == oSymbol){
+				return 'lose';
+			}else if($('#s7').val() == oSymbol && $('#s8').val() == oSymbol && $('#s9').val() == oSymbol){
+				return 'lose';
+			}else if($('#s1').val() == oSymbol && $('#s4').val() == oSymbol && $('#s7').val() == oSymbol){
+				return 'lose';
+			}else if($('#s2').val() == oSymbol && $('#s5').val() == oSymbol && $('#s8').val() == oSymbol){
+				return 'lose';
+			}else if($('#s3').val() == oSymbol && $('#s6').val() == oSymbol && $('#s9').val() == oSymbol){
+				return 'lose';
+			}else if($('#s1').val() == oSymbol && $('#s5').val() == oSymbol && $('#s9').val() == oSymbol){
+				return 'lose';
+			}else if($('#s3').val() == oSymbol && $('#s5').val() == oSymbol && $('#s7').val() == oSymbol){
+				return 'lose';
+			}else{			
+				return 'none';
+			}
+		
+		}
+		
+		function closing(){	
+			socket.emit('clean');
+		}
+		
+		function closeWindow(){
+			disableAll();
+			$('#title').text("Timeout");
+			closing();
+		}
+		
+	</script>
+	
+  </body>
+  
+</html>
