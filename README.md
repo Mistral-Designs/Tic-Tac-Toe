@@ -9,7 +9,10 @@ You can play the game here:
 
 ## API
 
-`io.on ('connection', function (socket)`
+``` javascript
+io.on ('connection', function (socket)
+```
+
 The central trigger that registers the player in a match or in the list of available, gives a symbol to each player and includes all other events.
 
 `socket.on ('setName', function (msg)`
